@@ -1,75 +1,61 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* * וודא שההגדרות האלה הן האחרונות בקובץ
+* כדי למנוע קונפליקטים עם Tailwind
+*/
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-/* app/globals.css או קובץ CSS אחר */
+/* --- סגנון כרטיס היפוך (Flip Card) --- */
 
 .flip-card {
-  background-color: transparent;
-  width: 300px; /* רוחב הקלף */
-  height: 400px; /* גובה הקלף */
-  perspective: 1000px; /* נותן עומק לאפקט התלת-ממד */
+    perspective: 1000px;
+    height: 350px; /* גובה קבוע לנייד */
+    width: 100%;
 }
 
 .flip-card-inner {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  text-align: center;
-  transition: transform 0.8s; /* זמן האנימציה */
-  transform-style: preserve-3d; /* חשוב לשמירת אפקט התלת-ממד */
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+    border-radius: 1rem;
 }
 
-/* כשהקלף הפוך */
-.flip-card.flipped .flip-card-inner {
-  transform: rotateY(180deg);
+/* ⬅️ המחלקה שנוספת על ידי React ➡️ */
+.guessed .flip-card-inner {
+    transform: rotateY(180deg);
 }
 
 .flip-card-front, .flip-card-back {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  -webkit-backface-visibility: hidden; /* הסתרת הצד האחורי כשהוא הפוך */
-  backface-visibility: hidden;
-  border-radius: 20px; /* התאמה לפי העיצוב שלך */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  display: flex; /* למיקום מרכזי של התוכן */
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    border-radius: 1rem;
+    
+    /* עיצוב רקע/טקסט בסיסי - ניתן לשנות כאן צבעים */
+    background-color: #1f2937; 
+    color: white; 
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); 
 
-.flip-card-front {
-  background-color: #333; /* צבע לצד הקדמי */
-  color: white;
+    /* פריסה שמוגדרת כעת ב-CSS גלובלי (כדי לפשט את קוד ה-JSX) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
 }
 
 .flip-card-back {
-  background-color: #1a1a1a; /* צבע לצד האחורי */
-  color: white;
-  transform: rotateY(180deg); /* הצד האחורי מתחיל "הפוך" */
+    transform: rotateY(180deg);
+}
+
+/* התאמה למחשבים שולחניים (גדלים גדולים יותר) */
+@media (min-width: 768px) {
+    .flip-card {
+        height: 400px; 
+    }
 }
