@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
     // פנייה ל־iTunes Search API
     const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=10`
+      `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=song&limit=100&country=IL`
     );
 
     if (!res.ok) {
