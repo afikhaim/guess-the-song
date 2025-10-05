@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
 
+interface ResponsedSong  {
+     trackName: string;
+      artistName: string;
+      collectionName: string;
+      artworkUrl100: string;
+      previewUrl: string;
+      releaseDate: string; 
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -27,7 +36,7 @@ export async function GET(request: Request) {
     const data = await res.json();
 
     // עיבוד התוצאות כדי להחזיר רק מידע רלוונטי
-    const songs = data.results.map((song: any) => ({
+    const songs = data.results.map((song: ResponsedSong) => ({
       title: song.trackName,
       artist: song.artistName,
       album: song.collectionName,
