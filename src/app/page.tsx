@@ -140,7 +140,7 @@ export default function Home() {
 
       {!song && !loading && <p className="mt-4 text-red-400">הגרל שיר כדי להתחיל!</p>}
       {song && !isFlipped && (
-        <p className="mt-4 text-gray-400">לחץ על "הפוך קלף" כדי לגלות את השיר!</p>
+        <p className="mt-4 text-gray-400">לחץ על *הפוך קלף* כדי לגלות את השיר!</p>
       )}
     </div>
   );
