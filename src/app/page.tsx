@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import "./globals.css";
 
 export interface Song {
@@ -18,6 +19,25 @@ const extractYear = (dateStr: string): number => {
   return date.getFullYear() || new Date().getFullYear();
 };
 
+// 🔥 רכיב ניקוד צף
+interface FloatingScoreProps {
+  score: number;
+}
+
+const FloatingScore: React.FC<FloatingScoreProps> = ({ score }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 0, scale: 1 }}
+      animate={{ opacity: [0, 1, 1, 0], y: -50, scale: 1.3 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 1.5, times: [0, 0.2, 0.8, 1] }}
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl z-50 md:text-5xl font-extrabold text-green-400 drop-shadow-lg pointer-events-none"
+    >
+      +{score}
+    </motion.div>
+  );
+};
+
 export default function Home() {
   const [song, setSong] = useState<Song | null>(null);
   const [songs, setSongs] = useState<Song[]>([]);
@@ -26,6 +46,7 @@ export default function Home() {
   const [userGuess, setUserGuess] = useState<number | null>(null);
   const [totalScore, setTotalScore] = useState(0);
   const [lastScore, setLastScore] = useState<number | null>(null);
+  const [showFloatingScore, setShowFloatingScore] = useState<number | null>(null);
 
   const getRandomSong = useCallback(async () => {
     setLoading(true);
@@ -33,6 +54,7 @@ export default function Home() {
     setUserGuess(null);
     setSong(null);
     setLastScore(null);
+    setShowFloatingScore(null);
 
     let tracksToChoose = songs;
 
@@ -40,7 +62,6 @@ export default function Home() {
       if (songs.length === 0) {
         const res = await fetch(`/api/itunes?term=greatest hits`);
         const data = await res.json();
-
         if (data.error) throw new Error(data.error);
 
         const songsWithYear: Song[] = data.songs.map(
@@ -82,14 +103,17 @@ export default function Home() {
     const diff = Math.abs(correctYear - userGuess);
 
     let score = 0;
-
-    if (diff <= MAX_DIFF) {
-      score = MAX_SCORE - PENALTY_PER_YEAR * diff;
-    }
+    if (diff <= MAX_DIFF) score = MAX_SCORE - PENALTY_PER_YEAR * diff;
 
     setTotalScore((prev) => prev + score);
     setLastScore(score);
     setIsGuessed(true);
+
+    // הצגת ניקוד צף אם יש יותר מ-0
+    if (score > 0) {
+      setShowFloatingScore(score);
+      setTimeout(() => setShowFloatingScore(null), 1500);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -115,7 +139,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 md:p-8">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 md:p-8 relative">
       <h1 className="text-3xl md:text-4xl font-extrabold mb-2 text-center">
         🎵 נחש את השנה!
       </h1>
@@ -123,10 +147,15 @@ export default function Home() {
         ניקוד: {totalScore}
       </p>
 
+      {/* אנימציית ניקוד צף */}
+      <AnimatePresence>
+        {showFloatingScore !== null && <FloatingScore score={showFloatingScore} />}
+      </AnimatePresence>
+
       {/* כרטיס מתהפך */}
       <div className={`flip-card ${isGuessed ? "flipped" : ""}`}>
         <div className="flip-card-inner">
-          {/* חזית (לפני ניחוש) */}
+          {/* חזית */}
           <div className="flip-card-front bg-gray-900 rounded-2xl shadow-lg p-6 border border-gray-700 text-center">
             {song ? (
               <>
@@ -136,25 +165,18 @@ export default function Home() {
                 <div className="w-40 h-40 mx-auto mb-4 bg-gray-800 rounded-2xl flex items-center justify-center text-gray-500">
                   🎧 מאזין לשיר...
                 </div>
-                <audio
-                  autoPlay
-                  controls
-                  src={song.preview}
-                  className="mx-auto mt-4 w-full"
-                >
+                <audio autoPlay controls src={song.preview} className="mx-auto mt-4 w-full">
                   הדפדפן שלך לא תומך בנגן אודיו
                 </audio>
               </>
             ) : (
-              <h2 className="text-2xl font-bold">
-                לחץ על הגרל שיר כדי להתחיל 🎲
-              </h2>
+              <h2 className="text-2xl font-bold">לחץ על הגרל שיר כדי להתחיל 🎲</h2>
             )}
           </div>
 
-          {/* גב (אחרי ניחוש) */}
+          {/* גב */}
           <div className="flip-card-back bg-gray-900 rounded-2xl shadow-lg p-6 border border-gray-700 text-center">
-            {song && (
+            {(song && isGuessed) && (
               <>
                 <img
                   src={song.cover}
@@ -166,9 +188,7 @@ export default function Home() {
                 <p className="text-lg font-extrabold text-green-400 mt-2">
                   שנת יציאה: {song.releaseYear} 🗓️
                 </p>
-                <p className="text-sm text-gray-500">
-                  ({formatDate(song.releaseDate)})
-                </p>
+                <p className="text-sm text-gray-500">({formatDate(song.releaseDate)})</p>
                 <p className="mt-4 text-yellow-300 font-bold text-lg">
                   {getFeedbackMessage()}
                 </p>
@@ -181,9 +201,7 @@ export default function Home() {
       {/* אזור ניחוש */}
       {song && !isGuessed && (
         <div className="guessing-area mt-4 mb-8 w-full max-w-sm p-4 bg-gray-800 rounded-lg shadow-xl">
-          <h2 className="text-xl font-bold mb-3 text-center">
-            נחש את שנת היציאה!
-          </h2>
+          <h2 className="text-xl font-bold mb-3 text-center">נחש את שנת היציאה!</h2>
           <div className="flex justify-center items-center gap-4">
             <input
               type="number"
@@ -214,23 +232,13 @@ export default function Home() {
         >
           {loading ? (
             <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
-              <circle
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="white"
-                strokeWidth="4"
-                fill="none"
-              />
-              <path
-                d="M4 12a8 8 0 018-8"
-                stroke="white"
-                strokeWidth="4"
-                strokeLinecap="round"
-              />
+              <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
+              <path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round" />
             </svg>
+          ) : isGuessed ? (
+            "שיר הבא 🎶"
           ) : (
-            isGuessed ? "שיר הבא 🎶" : "הגרל שיר 🎲"
+            "הגרל שיר 🎲"
           )}
         </button>
 
@@ -245,7 +253,7 @@ export default function Home() {
       </div>
 
       {!song && !loading && (
-        <p className="mt-4 text-red-400">הגרל שיר כדי להתחיל!</p>
+        <p className="mt-4 text-red-400">הגרל שיר כדי להתחיל</p>
       )}
     </div>
   );
