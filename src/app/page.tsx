@@ -24,19 +24,17 @@ interface FloatingScoreProps {
   score: number;
 }
 
-const FloatingScore: React.FC<FloatingScoreProps> = ({ score }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 0, scale: 1 }}
-      animate={{ opacity: [0, 1, 1, 0], y: -50, scale: 1.3 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 1.5, times: [0, 0.2, 0.8, 1] }}
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl z-50 md:text-5xl font-extrabold text-green-400 drop-shadow-lg pointer-events-none"
-    >
-      +{score}
-    </motion.div>
-  );
-};
+const FloatingScore: React.FC<FloatingScoreProps> = ({ score }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 0, scale: 1 }}
+    animate={{ opacity: [0, 1, 1, 0], y: -50, scale: 1.3 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 1.5, times: [0, 0.2, 0.8, 1] }}
+    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl z-50 md:text-5xl font-extrabold text-green-400 drop-shadow-lg pointer-events-none"
+  >
+    +{score}
+  </motion.div>
+);
 
 export default function Home() {
   const [song, setSong] = useState<Song | null>(null);
@@ -44,9 +42,22 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [isGuessed, setIsGuessed] = useState(false);
   const [userGuess, setUserGuess] = useState<number | null>(null);
-  const [totalScore, setTotalScore] = useState(0);
   const [lastScore, setLastScore] = useState<number | null>(null);
   const [showFloatingScore, setShowFloatingScore] = useState<number | null>(null);
+  const [totalScore, setTotalScore] = useState(0);
+
+  // ✅ Load totalScore only on client
+  useEffect(() => {
+    const savedScore = localStorage.getItem("totalScore");
+    if (savedScore) setTotalScore(parseInt(savedScore));
+  }, []);
+
+  // ✅ Save totalScore to localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("totalScore", totalScore.toString());
+    }
+  }, [totalScore]);
 
   const getRandomSong = useCallback(async () => {
     setLoading(true);
@@ -70,14 +81,12 @@ export default function Home() {
             releaseYear: extractYear(s.releaseDate),
           })
         );
-
         setSongs(songsWithYear);
         tracksToChoose = songsWithYear;
       }
 
       const randomIndex = Math.floor(Math.random() * tracksToChoose.length);
       const chosen = tracksToChoose[randomIndex];
-
       if (chosen) setSong(chosen);
     } catch (err) {
       console.error("Error fetching song:", err);
@@ -86,11 +95,10 @@ export default function Home() {
     }
   }, [songs]);
 
+  // Run only on client
   useEffect(() => {
-    if (songs.length === 0) {
-      getRandomSong();
-    }
-  }, [getRandomSong, songs.length]);
+    if (songs.length === 0) getRandomSong();
+  }, [songs.length, getRandomSong]);
 
   const calculateScore = () => {
     if (!song || userGuess === null || isGuessed || String(userGuess).length !== 4) return;
@@ -99,17 +107,14 @@ export default function Home() {
     const PENALTY_PER_YEAR = 10;
     const MAX_DIFF = 10;
 
-    const correctYear = song.releaseYear;
-    const diff = Math.abs(correctYear - userGuess);
-
+    const diff = Math.abs(song.releaseYear - userGuess);
     let score = 0;
     if (diff <= MAX_DIFF) score = MAX_SCORE - PENALTY_PER_YEAR * diff;
 
-    setTotalScore((prev) => prev + score);
+    setTotalScore(prev => prev + score);
     setLastScore(score);
     setIsGuessed(true);
 
-    // הצגת ניקוד צף אם יש יותר מ-0
     if (score > 0) {
       setShowFloatingScore(score);
       setTimeout(() => setShowFloatingScore(null), 1500);
@@ -127,27 +132,19 @@ export default function Home() {
 
   const getFeedbackMessage = () => {
     if (!song || lastScore === null) return null;
-
-    if (lastScore === 100) {
-      return `🎉 ניחוש מושלם! 100 נקודות.`;
-    } else if (lastScore > 0) {
+    if (lastScore === 100) return `🎉 ניחוש מושלם! 100 נקודות.`;
+    if (lastScore > 0) {
       const diff = Math.abs(song.releaseYear - (userGuess ?? 0));
       return `✅ קרוב! קיבלת ${lastScore} נקודות. פער של ${diff} שנים.`;
-    } else {
-      return `❌ טעות. השנה הנכונה היא ${song.releaseYear}.`;
     }
+    return `❌ טעות. השנה הנכונה היא ${song.releaseYear}.`;
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-black text-white p-4 md:p-8 relative">
-      <h1 className="text-3xl md:text-4xl font-extrabold mb-2 text-center">
-        🎵 נחש את השנה!
-      </h1>
-      <p className="text-sm text-yellow-400 mb-6 font-semibold">
-        ניקוד: {totalScore}
-      </p>
+      <h1 className="text-3xl md:text-4xl font-extrabold mb-2 text-center">🎵 נחש את השנה!</h1>
+      <p className="text-sm text-yellow-400 mb-2 font-semibold">ניקוד: {totalScore}</p>
 
-      {/* אנימציית ניקוד צף */}
       <AnimatePresence>
         {showFloatingScore !== null && <FloatingScore score={showFloatingScore} />}
       </AnimatePresence>
@@ -155,16 +152,11 @@ export default function Home() {
       {/* כרטיס מתהפך */}
       <div className={`flip-card ${isGuessed ? "flipped" : ""}`}>
         <div className="flip-card-inner">
-          {/* חזית */}
           <div className="flip-card-front bg-gray-900 rounded-2xl shadow-lg p-6 border border-gray-700 text-center">
             {song ? (
               <>
-                <h2 className="text-2xl font-bold mb-4">
-                  מהי שנת היציאה של השיר?
-                </h2>
-                <div className="w-40 h-40 mx-auto mb-4 bg-gray-800 rounded-2xl flex items-center justify-center text-gray-500">
-                  🎧 מאזין לשיר...
-                </div>
+                <h2 className="text-2xl font-bold mb-4">מהי שנת היציאה של השיר?</h2>
+                <div className="w-40 h-40 mx-auto mb-4 bg-gray-800 rounded-2xl flex items-center justify-center text-gray-500">🎧 מאזין לשיר...</div>
                 <audio autoPlay controls src={song.preview} className="mx-auto mt-4 w-full">
                   הדפדפן שלך לא תומך בנגן אודיו
                 </audio>
@@ -174,87 +166,47 @@ export default function Home() {
             )}
           </div>
 
-          {/* גב */}
           <div className="flip-card-back bg-gray-900 rounded-2xl shadow-lg p-6 border border-gray-700 text-center">
-            {(song && isGuessed) && (
+            {song && isGuessed && (
               <>
-                <img
-                  src={song.cover}
-                  alt={song.title}
-                  className="rounded-2xl mx-auto shadow-lg mb-4 w-40 h-40 object-cover border-4 border-green-500"
-                />
+                <img src={song.cover} alt={song.title} className="rounded-2xl mx-auto shadow-lg mb-4 w-40 h-40 object-cover border-4 border-green-500"/>
                 <h2 className="text-xl font-bold">{song.title}</h2>
                 <p className="text-gray-400 mb-2">{song.album}</p>
-                <p className="text-lg font-extrabold text-green-400 mt-2">
-                  שנת יציאה: {song.releaseYear} 🗓️
-                </p>
+                <p className="text-lg font-extrabold text-green-400 mt-2">שנת יציאה: {song.releaseYear} 🗓️</p>
                 <p className="text-sm text-gray-500">({formatDate(song.releaseDate)})</p>
-                <p className="mt-4 text-yellow-300 font-bold text-lg">
-                  {getFeedbackMessage()}
-                </p>
+                <p className="mt-4 text-yellow-300 font-bold text-lg">{getFeedbackMessage()}</p>
               </>
             )}
           </div>
         </div>
       </div>
 
-      {/* אזור ניחוש */}
       {song && !isGuessed && (
         <div className="guessing-area mt-4 mb-8 w-full max-w-sm p-4 bg-gray-800 rounded-lg shadow-xl">
           <h2 className="text-xl font-bold mb-3 text-center">נחש את שנת היציאה!</h2>
           <div className="flex justify-center items-center gap-4">
-            <input
-              type="number"
-              placeholder="שנה (YYYY)"
-              value={userGuess || ""}
-              onChange={(e) => setUserGuess(parseInt(e.target.value) || null)}
-              min="1950"
-              max={new Date().getFullYear()}
-              className="p-3 border border-gray-600 rounded-lg text-center w-28 bg-gray-700 text-white focus:ring-blue-500 focus:border-blue-500"
-            />
-            <button
-              onClick={calculateScore}
-              disabled={!userGuess || String(userGuess).length !== 4}
-              className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50"
-            >
-              נחש! 🎯
-            </button>
+            <input type="number" placeholder="שנה (YYYY)" value={userGuess || ""} onChange={e => setUserGuess(parseInt(e.target.value) || null)} min="1950" max={new Date().getFullYear()} className="p-3 border border-gray-600 rounded-lg text-center w-28 bg-gray-700 text-white focus:ring-blue-500 focus:border-blue-500"/>
+            <button onClick={calculateScore} disabled={!userGuess || String(userGuess).length !== 4} className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50">נחש! 🎯</button>
           </div>
         </div>
       )}
 
-      {/* כפתורים */}
       <div className="flex flex-col space-y-4 w-full max-w-sm md:flex-row md:space-x-4 md:space-y-0">
-        <button
-          onClick={getRandomSong}
-          disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-semibold transition flex items-center justify-center w-full"
-        >
+        <button onClick={getRandomSong} disabled={loading} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-semibold transition flex items-center justify-center w-full">
           {loading ? (
             <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
-              <path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round" />
+              <path d="M4 12a8 8 0 018-8" stroke="white" strokeWidth="4" strokeLinecap="round"/>
             </svg>
-          ) : isGuessed ? (
-            "שיר הבא 🎶"
-          ) : (
-            "הגרל שיר 🎲"
-          )}
+          ) : isGuessed ? "שיר הבא 🎶" : "הגרל שיר 🎲"}
         </button>
 
         {isGuessed && (
-          <button
-            onClick={() => setIsGuessed(false)}
-            className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-xl font-semibold transition w-full"
-          >
-            הפוך חזרה 🔄
-          </button>
+          <button onClick={() => setIsGuessed(false)} className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-xl font-semibold transition w-full">הפוך חזרה 🔄</button>
         )}
       </div>
 
-      {!song && !loading && (
-        <p className="mt-4 text-red-400">הגרל שיר כדי להתחיל</p>
-      )}
+      {!song && !loading && <p className="mt-4 text-red-400">הגרל שיר כדי להתחיל</p>}
     </div>
   );
 }
