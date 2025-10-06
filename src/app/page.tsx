@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useState } from "react";
 import "./globals.css";
 
 export interface Song {
@@ -21,18 +21,20 @@ const extractYear = (dateStr: string): number => {
 
 // 🔥 רכיב ניקוד צף
 interface FloatingScoreProps {
-  score: number;
+  score?: number;
+  text?: string;
 }
 
-const FloatingScore: React.FC<FloatingScoreProps> = ({ score }) => (
+const FloatingScore: React.FC<FloatingScoreProps> = ({ score, text }) => (
   <motion.div
+    key={Date.now()} // key ייחודי כדי להפעיל AnimatePresence תמיד
     initial={{ opacity: 0, y: 0, scale: 1 }}
     animate={{ opacity: [0, 1, 1, 0], y: -50, scale: 1.3 }}
     exit={{ opacity: 0 }}
     transition={{ duration: 1.5, times: [0, 0.2, 0.8, 1] }}
     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl z-50 md:text-5xl font-extrabold text-green-400 drop-shadow-lg pointer-events-none"
   >
-    +{score}
+    {text ?? `+${score}`}
   </motion.div>
 );
 
@@ -43,8 +45,12 @@ export default function Home() {
   const [isGuessed, setIsGuessed] = useState(false);
   const [userGuess, setUserGuess] = useState<number | null>(null);
   const [lastScore, setLastScore] = useState<number | null>(null);
-  const [showFloatingScore, setShowFloatingScore] = useState<number | null>(null);
+  const [showFloatingScore, setShowFloatingScore] = useState<{ score?: number; text?: string } | null>(null);
   const [totalScore, setTotalScore] = useState(0);
+
+  // Easter egg tracking
+  const [clickCount, setClickCount] = useState(0);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   // ✅ Load totalScore only on client
   useEffect(() => {
@@ -100,9 +106,26 @@ export default function Home() {
     if (songs.length === 0) getRandomSong();
   }, [songs.length, getRandomSong]);
 
+  // 🌟 handle guess click + Easter egg
   const calculateScore = () => {
     if (!song || userGuess === null || isGuessed || String(userGuess).length !== 4) return;
 
+    const now = Date.now();
+    // Easter egg: 3 לחיצות מהירות בתוך 1 שניה
+    if (now - lastClickTime < 1000) {
+      const newCount = clickCount + 1;
+      setClickCount(newCount);
+      if (newCount >= 3) {
+        setShowFloatingScore({ text: "חני" });
+        setTimeout(() => setShowFloatingScore(null), 1500);
+        setClickCount(0);
+      }
+    } else {
+      setClickCount(1);
+    }
+    setLastClickTime(now);
+
+    // Normal score calculation
     const MAX_SCORE = 100;
     const PENALTY_PER_YEAR = 10;
     const MAX_DIFF = 10;
@@ -116,7 +139,7 @@ export default function Home() {
     setIsGuessed(true);
 
     if (score > 0) {
-      setShowFloatingScore(score);
+      setShowFloatingScore({ score });
       setTimeout(() => setShowFloatingScore(null), 1500);
     }
   };
@@ -146,7 +169,7 @@ export default function Home() {
       <p className="text-sm text-yellow-400 mb-2 font-semibold">ניקוד: {totalScore}</p>
 
       <AnimatePresence>
-        {showFloatingScore !== null && <FloatingScore score={showFloatingScore} />}
+        {showFloatingScore !== null && <FloatingScore {...showFloatingScore} />}
       </AnimatePresence>
 
       {/* כרטיס מתהפך */}
@@ -185,14 +208,32 @@ export default function Home() {
         <div className="guessing-area mt-4 mb-8 w-full max-w-sm p-4 bg-gray-800 rounded-lg shadow-xl">
           <h2 className="text-xl font-bold mb-3 text-center">נחש את שנת היציאה!</h2>
           <div className="flex justify-center items-center gap-4">
-            <input type="number" placeholder="שנה (YYYY)" value={userGuess || ""} onChange={e => setUserGuess(parseInt(e.target.value) || null)} min="1950" max={new Date().getFullYear()} className="p-3 border border-gray-600 rounded-lg text-center w-28 bg-gray-700 text-white focus:ring-blue-500 focus:border-blue-500"/>
-            <button onClick={calculateScore} disabled={!userGuess || String(userGuess).length !== 4} className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50">נחש! 🎯</button>
+            <input
+              type="number"
+              placeholder="שנה (YYYY)"
+              value={userGuess || ""}
+              onChange={e => setUserGuess(parseInt(e.target.value) || null)}
+              min="1950"
+              max={new Date().getFullYear()}
+              className="p-3 border border-gray-600 rounded-lg text-center w-28 bg-gray-700 text-white focus:ring-blue-500 focus:border-blue-500"
+            />
+            <button
+              onClick={calculateScore}
+              disabled={!userGuess || String(userGuess).length !== 4}
+              className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold transition hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50"
+            >
+              נחש! 🎯
+            </button>
           </div>
         </div>
       )}
 
       <div className="flex flex-col space-y-4 w-full max-w-sm md:flex-row md:space-x-4 md:space-y-0">
-        <button onClick={getRandomSong} disabled={loading} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-semibold transition flex items-center justify-center w-full">
+        <button
+          onClick={getRandomSong}
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-semibold transition flex items-center justify-center w-full"
+        >
           {loading ? (
             <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="4" fill="none" />
@@ -202,7 +243,12 @@ export default function Home() {
         </button>
 
         {isGuessed && (
-          <button onClick={() => setIsGuessed(false)} className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-xl font-semibold transition w-full">הפוך חזרה 🔄</button>
+          <button
+            onClick={() => setIsGuessed(false)}
+            className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-xl font-semibold transition w-full"
+          >
+            הפוך חזרה 🔄
+          </button>
         )}
       </div>
 
